@@ -57,7 +57,7 @@ public class LoadBalancer extends Verticle {
                 MultiMap map = req.params();
                 final String userid = map.get("userid");
                 final String hashtag = map.get("hashtag");
-                String response = getResponse(req, userid + hashtag);
+                String response = getResponse(req, userid + "#" + hashtag);
                 req.response().end(response); // Do not remove this
             }
         });
@@ -108,6 +108,9 @@ public class LoadBalancer extends Verticle {
                 break;
             case 4:
                 dcDns = dns4;
+                break;
+            case 5:
+                dcDns = dns5;
                 break;
         }
         return dcDns;
