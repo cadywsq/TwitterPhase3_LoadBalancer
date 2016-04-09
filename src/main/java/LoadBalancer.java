@@ -12,6 +12,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @author Siqi Wang siqiw1 on 3/30/16.
@@ -30,14 +32,13 @@ public class LoadBalancer extends Verticle {
         dcMap.put(5, dns5);
     }};
 
-    public static void main(String[] args) {
-
-    }
 
     @Override
     public void start() {
         final RouteMatcher routeMatcher = new RouteMatcher();
         final HttpServer server = vertx.createHttpServer();
+        final ExecutorService executorService = Executors.newCachedThreadPool();
+
         server.setAcceptBacklog(32767);
         server.setUsePooledBuffers(true);
         server.setReceiveBufferSize(4 * 1024);
@@ -47,8 +48,12 @@ public class LoadBalancer extends Verticle {
             public void handle(final HttpServerRequest req) {
                 MultiMap map = req.params();
                 final String key = map.get("key");
-                String response = getResponse(req, key);
-                req.response().end(response); // Do not remove this
+                executorService.execute(new Runnable() {
+                    public void run() {
+                        String response = getResponse(req, key);
+                        req.response().end(response);
+                    }
+                });
             }
         });
 
@@ -57,8 +62,12 @@ public class LoadBalancer extends Verticle {
                 MultiMap map = req.params();
                 final String userid = map.get("userid");
                 final String hashtag = map.get("hashtag");
-                String response = getResponse(req, userid + "#" + hashtag);
-                req.response().end(response); // Do not remove this
+                executorService.execute(new Runnable() {
+                    public void run() {
+                        String response = getResponse(req, userid + hashtag);
+                        req.response().end(response);
+                    }
+                });
             }
         });
 
@@ -66,8 +75,12 @@ public class LoadBalancer extends Verticle {
             public void handle(final HttpServerRequest req) {
                 MultiMap map = req.params();
                 final String startUserid = map.get("start_userid");
-                String response = getResponse(req, startUserid);
-                req.response().end(response); // Do not remove this
+                executorService.execute(new Runnable() {
+                    public void run() {
+                        String response = getResponse(req, startUserid);
+                        req.response().end(response);
+                    }
+                });
             }
         });
 
@@ -75,16 +88,20 @@ public class LoadBalancer extends Verticle {
             public void handle(final HttpServerRequest req) {
                 MultiMap map = req.params();
                 final String tweetId = map.get("tweetid");
-                String response = getResponse(req, tweetId);
-                req.response().end(response);
+                executorService.execute(new Runnable() {
+                    public void run() {
+                        String response = getResponse(req, tweetId);
+                        req.response().end(response);
+                    }
+                });
             }
         });
     }
 
-    private String getResponse(HttpServerRequest req, String startUserid) {
+    private String getResponse(HttpServerRequest req, String hashKey) {
         String dcDns = dns1;
         final String path = req.path();
-        final int key = hashLocation(startUserid);
+        final int key = hashLocation(hashKey);
         String response = null;
         dcDns = getRedirectDNS(dcDns, key);
         try {
